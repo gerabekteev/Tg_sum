@@ -40,19 +40,21 @@ async def summarize_messages(messages_text: str) -> str:
     """
     logger.info("Запуск саммаризации через Antigravity CLI (agy)...")
     try:
-        cli_path = config.AGY_CLI_PATH
-        # shutil.which находит полный путь к исполняемому файлу в PATH
-        resolved_path = shutil.which(cli_path) or cli_path
+        import shlex
         
-        # Так как agy является нативным бинарным файлом во всех ОС,
-        # мы вызываем его напрямую без cmd.exe /c
-        cmd = [
-            resolved_path,
+        # Разделяем путь на части, чтобы поддержать префиксы вроде "proxychains4 agy"
+        cli_args = shlex.split(config.AGY_CLI_PATH)
+        resolved_exe = shutil.which(cli_args[0]) or cli_args[0]
+        
+        # Собираем полную команду
+        cmd = [resolved_exe] + cli_args[1:]
+        cmd.extend([
             "-p", SUMMARIZER_PROMPT,
             "--dangerously-skip-permissions"
-        ]
+        ])
         
         logger.debug(f"Выполняю команду: {' '.join(cmd)}")
+
 
         
         process = await asyncio.create_subprocess_exec(
