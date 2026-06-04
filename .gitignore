@@ -1,0 +1,13 @@
+# Environments
+.env
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# Project sessions / local settings
+sessions/

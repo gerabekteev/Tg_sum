@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: tg_summarizer
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./sessions:/app/sessions
+      - ./dumps:/app/dumps
