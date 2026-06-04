@@ -35,8 +35,8 @@ SUMMARIZER_PROMPT = (
 
 async def summarize_messages(messages_text: str) -> str:
     """
-    Вызывает локальный Gemini CLI через subprocess, передает текст сообщений
-    на stdin и получает структурированную сводку.
+    Вызывает локальный Antigravity CLI (agy) через subprocess, передает инструкции
+    и текст сообщений на stdin и получает структурированную сводку.
     """
     logger.info("Запуск саммаризации через Antigravity CLI (agy)...")
     try:
@@ -46,16 +46,22 @@ async def summarize_messages(messages_text: str) -> str:
         cli_args = shlex.split(config.AGY_CLI_PATH)
         resolved_exe = shutil.which(cli_args[0]) or cli_args[0]
         
+        # Директивный промпт для агента, чтобы он не запускал инструменты и не писал код,
+        # а строго выполнил саммаризацию по инструкциям из stdin.
+        directive_prompt = (
+            "Сделай структурированное саммари переписки из стандартного ввода (stdin) строго по инструкции, "
+            "указанной в начале stdin. Не запускай никаких инструментов, не пиши код и не задавай вопросов. "
+            "Просто выведи готовый текст саммари на русском языке."
+        )
+
         # Собираем полную команду
         cmd = [resolved_exe] + cli_args[1:]
         cmd.extend([
-            "-p", SUMMARIZER_PROMPT,
+            "-p", directive_prompt,
             "--dangerously-skip-permissions"
         ])
         
         logger.debug(f"Выполняю команду: {' '.join(cmd)}")
-
-
         
         process = await asyncio.create_subprocess_exec(
             *cmd,
@@ -64,8 +70,11 @@ async def summarize_messages(messages_text: str) -> str:
             stderr=asyncio.subprocess.PIPE
         )
         
-        # Передаем переписку в stdin и ждем завершения
-        stdout, stderr = await process.communicate(input=messages_text.encode("utf-8"))
+        # Объединяем системный промпт и переписку в один блок для отправки через stdin
+        combined_input = f"ИНСТРУКЦИЯ ПО СОЗДАНИЮ САММАРИ:\n{SUMMARIZER_PROMPT}\n\nТЕКСТ ПЕРЕПИСКИ ДЛЯ АНАЛИЗА:\n{messages_text}"
+
+        # Передаем объединенный текст в stdin и ждем завершения
+        stdout, stderr = await process.communicate(input=combined_input.encode("utf-8"))
         
         stdout_str = stdout.decode("utf-8", errors="ignore").strip()
         stderr_str = stderr.decode("utf-8", errors="ignore").strip()
@@ -81,4 +90,5 @@ async def summarize_messages(messages_text: str) -> str:
     except Exception as e:
         logger.exception("Исключение при вызове Gemini CLI для саммаризации")
         raise e
+
 
